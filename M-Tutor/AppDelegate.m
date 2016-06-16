@@ -7,18 +7,195 @@
 //
 
 #import "AppDelegate.h"
+#import "Home.h"
+#import "MyCourseView.h"
+#import "FeatureView.h"
+#import "WishlistView.h"
+#import "Profile.h"
+#import "MySubjectList.h"
 
 @interface AppDelegate ()
 
 @end
 
 @implementation AppDelegate
+@synthesize dictXMLData;
+@synthesize shouldRotate;
+
 
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     // Override point for customization after application launch.
+    
+    if ([application respondsToSelector:@selector(isRegisteredForRemoteNotifications)])
+    {
+        // iOS 8 Notifications
+        [application registerUserNotificationSettings:[UIUserNotificationSettings settingsForTypes:(UIUserNotificationTypeSound | UIUserNotificationTypeAlert | UIUserNotificationTypeBadge) categories:nil]];
+        
+        [application registerForRemoteNotifications];
+    }
+    else
+    {
+        // iOS < 8 Notifications
+        [application registerForRemoteNotificationTypes:
+         (UIRemoteNotificationTypeBadge | UIRemoteNotificationTypeAlert | UIRemoteNotificationTypeSound)];
+    }
+    
+    
+    
+    UIStoryboard *storyboard = [UIStoryboard storyboardWithName:@"Main" bundle:nil];
+    UIViewController *viewController;
+    
+    NSString *check= [[NSUserDefaults standardUserDefaults] objectForKey:@"userid"];
+    NSLog(@"UserID : %@",check);
+    UINavigationController *nav;
+    
+    if ([check isEqualToString:@""] || check==nil) {
+        
+        viewController = [storyboard instantiateViewControllerWithIdentifier:@"mainID"];
+        nav = [[UINavigationController alloc]initWithRootViewController:viewController];
+        self.window.rootViewController = nav;
+
+    }
+    else
+    {
+        [self retrieveXMLData];
+//        viewController = [storyboard instantiateViewControllerWithIdentifier:@"homeID"];
+//        nav = [[UINavigationController alloc]initWithRootViewController:viewController];
+        
+        /*
+        Home *homeVC = [storyboard instantiateViewControllerWithIdentifier:@"homeID"];
+        homeVC.tabBarItem.title = @"Home";
+        
+        MyCourseView *myCourse = [storyboard instantiateViewControllerWithIdentifier:@"mycourseID"];
+        myCourse.tabBarItem.title = @"My Courses";
+        
+        WishlistView *wishList = [storyboard instantiateViewControllerWithIdentifier:@"wishlistID"];
+        wishList.tabBarItem.title = @"Wishlist";
+        
+        Profile *myProfile = [storyboard instantiateViewControllerWithIdentifier:@"profileID"];
+        myProfile.tabBarItem.title = @"Profile";
+        
+        
+        homeVC.tabBarItem.image = [[UIImage imageNamed:@"home-icon.png"]
+                                   imageWithRenderingMode:UIImageRenderingModeAlwaysOriginal];
+        
+        myCourse.tabBarItem.image = [[UIImage imageNamed:@"mycourseMenu.png"]
+                                     imageWithRenderingMode:UIImageRenderingModeAlwaysOriginal];
+        
+        
+        self.tabBarController = [[UITabBarController alloc]init];
+        self.tabBarController.viewControllers = @[homeVC,myCourse,wishList,myProfile];
+        self.tabBarController.delegate = (id)self;
+        [self.window setRootViewController:self.tabBarController];
+         */
+        
+        [self setTabbar];
+
+//        ViewController *loginVC = [story instantiateViewControllerWithIdentifier:@"loginID"];
+//        viewController = [storyboard instantiateViewControllerWithIdentifier:@"homeID"];
+//        [self.window setRootViewController:viewControllers];
+
+    }
+//    self.window.rootViewController = nav;
+    [self.window makeKeyAndVisible];
+
     return YES;
 }
+
+-(void)setTabbar
+{
+    UIStoryboard *storyboard = [UIStoryboard storyboardWithName:@"Main" bundle:nil];
+
+    Home *homeVC = [storyboard instantiateViewControllerWithIdentifier:@"homeID"];
+    homeVC.tabBarItem.title = @"Home";
+    
+    MySubjectList *mySubjectList = [storyboard instantiateViewControllerWithIdentifier:@"mysubjectID"];
+    mySubjectList.tabBarItem.title = @"My Courses";
+    
+    WishlistView *wishList = [storyboard instantiateViewControllerWithIdentifier:@"wishlistID"];
+    wishList.tabBarItem.title = @"Wishlist";
+    
+    Profile *myProfile = [storyboard instantiateViewControllerWithIdentifier:@"profileID"];
+    myProfile.tabBarItem.title = @"Profile";
+    
+    
+    homeVC.tabBarItem.image = [[UIImage imageNamed:@"home-icon.png"]
+                               imageWithRenderingMode:UIImageRenderingModeAlwaysOriginal];
+    
+    mySubjectList.tabBarItem.image = [[UIImage imageNamed:@"mycourseMenu.png"]
+                                 imageWithRenderingMode:UIImageRenderingModeAlwaysOriginal];
+    
+    
+    wishList.tabBarItem.image = [[UIImage imageNamed:@"home-icon.png"]
+                               imageWithRenderingMode:UIImageRenderingModeAlwaysOriginal];
+    
+    myProfile.tabBarItem.image = [[UIImage imageNamed:@"mycourseMenu.png"]
+                                 imageWithRenderingMode:UIImageRenderingModeAlwaysOriginal];
+
+    UINavigationController *nav1;
+    nav1 = [[UINavigationController alloc]initWithRootViewController:homeVC];
+
+    UINavigationController *nav2;
+    nav2 = [[UINavigationController alloc]initWithRootViewController:mySubjectList];
+
+    UINavigationController *nav3;
+    nav3 = [[UINavigationController alloc]initWithRootViewController:wishList];
+
+    UINavigationController *nav4;
+    nav4 = [[UINavigationController alloc]initWithRootViewController:myProfile];
+
+    self.tabBarController = [[UITabBarController alloc]init];
+    self.tabBarController.viewControllers = @[nav1,nav2,nav3,nav4];
+
+//    self.tabBarController.viewControllers = @[nav1,myCourse,wishList,myProfile];
+    self.tabBarController.delegate = (id)self;
+    [self.window setRootViewController:self.tabBarController];
+
+}
+
+- (void)retrieveXMLData
+{
+    NSString *strUser= [[NSUserDefaults standardUserDefaults] objectForKey:@"userid"];
+    NSLog(@"Instruction : %@",strUser);
+    
+    NSManagedObjectContext *context = [self managedObjectContext];
+    
+    NSEntityDescription *entityDesc =[NSEntityDescription entityForName:@"CourseDetails" inManagedObjectContext:context];
+    NSFetchRequest *request = [[NSFetchRequest alloc] init];
+    [request setEntity:entityDesc];
+    
+    
+    NSPredicate *pred = [NSPredicate predicateWithFormat:@"(userid = %@)",strUser];
+    [request setPredicate:pred];
+    
+    NSManagedObject *matches = nil;
+    
+    NSError *error;
+    NSArray *objects = [context executeFetchRequest:request
+                                              error:&error];
+    
+    if ([objects count] == 0) {
+        NSLog(@"No matches");
+        
+    } else {
+        matches = objects[0];
+        NSLog(@"matches found : %@",matches);
+        
+        NSData *data = [matches valueForKey:@"content"];
+        //        NSLog(@"Data : %@",data);
+        dictXMLData = [NSKeyedUnarchiver unarchiveObjectWithData:data];
+        //        NSLog(@"XML Parser : %@",dictXMLData);
+    }
+}
+
+-(UIInterfaceOrientationMask)application:(UIApplication *)application supportedInterfaceOrientationsForWindow:(UIWindow *)window{
+    if (self.shouldRotate)
+        return UIInterfaceOrientationMaskAllButUpsideDown;
+    else
+        return UIInterfaceOrientationMaskPortrait;
+}
+
 
 - (void)applicationWillResignActive:(UIApplication *)application {
     // Sent when the application is about to move from active to inactive state. This can occur for certain types of temporary interruptions (such as an incoming phone call or SMS message) or when the user quits the application and it begins the transition to the background state.
@@ -123,5 +300,98 @@
         }
     }
 }
+
+#pragma mark - Login & Logout
+
+-(void)loginUserInfoPlist :(NSDictionary *)dictUserinfo
+{
+    NSUserDefaults* def = [NSUserDefaults standardUserDefaults];
+    NSData* dictUserData = [NSKeyedArchiver archivedDataWithRootObject:dictUserinfo];
+    [def setObject:dictUserData forKey:@"userinfo"];
+    [def setBool:YES forKey:@"login-success"];
+    [def synchronize];
+}
+
+-(void)logoutUserInfoPlist
+{
+    NSUserDefaults* def = [NSUserDefaults standardUserDefaults];
+    {
+        [def removeObjectForKey:@"userinfo"];
+        [def removeObjectForKey:@"userid"];
+    }
+    [def synchronize];
+}
+
+#pragma mark - Progress bar
+
+- (void)showActivity
+{
+    if (!activityIndicatorView)
+        [self addActivityIndicator];
+    [label setHidden:NO];
+    activityIndicatorView.hidden = NO;
+    [activityIndicatorView startAnimating];
+    self.window.userInteractionEnabled = NO;
+    activityIndicatorView.center = self.window.center;
+    [self.window bringSubviewToFront:activityIndicatorView];
+    [self.window bringSubviewToFront:label];
+    
+}
+
+- (void)hideActivity {
+    
+    if (activityIndicatorView) {
+        if (activityIndicatorView.isAnimating)
+            [activityIndicatorView stopAnimating];
+    }
+    [label setHidden:YES];
+    self.window.userInteractionEnabled = YES;
+}
+
+
+- (void)addActivityIndicator {
+    
+    CGFloat labelX = 120.0 + 2;
+    
+    label = [[UILabel alloc] initWithFrame:CGRectMake(labelX + 10.0, 30.0f, self.window.bounds.size.width - (labelX + 2), self.window.frame.size.height)];
+    
+    label.autoresizingMask = UIViewAutoresizingFlexibleWidth;
+    
+    label.font = [UIFont boldSystemFontOfSize:12.0f];
+    
+    //    label.text=@"Please wait to download...";
+    
+    label.numberOfLines = 1;
+    
+    label.backgroundColor = [UIColor clearColor];
+    
+    label.textColor=[UIColor blackColor];
+    if ([UIDevice currentDevice].userInterfaceIdiom == UIUserInterfaceIdiomPad) {
+        
+        label.frame=CGRectMake(labelX + 235.0, 30.0f, self.window.bounds.size.width - (labelX + 2), self.window.frame.size.height) ;
+    }
+    
+    
+    [self.window addSubview:label];
+    
+    
+    activityIndicatorView = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleWhiteLarge];
+    
+    activityIndicatorView.color=[UIColor colorWithRed:48/255.0f green:135/255.0f blue:233/255.0f alpha:1.0f];
+    
+    activityIndicatorView.frame = CGRectMake(0, 0, 100, 100);
+    
+    activityIndicatorView.center = self.window.center;
+    
+    activityIndicatorView.layer.cornerRadius = 10;
+    
+    activityIndicatorView.layer.opacity = .75;
+    
+    activityIndicatorView.hidesWhenStopped = YES;
+    
+    [self.window addSubview:activityIndicatorView];
+    
+}
+
 
 @end
